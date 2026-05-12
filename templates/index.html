@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teen Mental Health · ML Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0c14;
+    --surface:  #111420;
+    --card:     #161b2e;
+    --border:   #232840;
+    --accent:   #6c63ff;
+    --accent2:  #ff6b9d;
+    --accent3:  #43e8a4;
+    --text:     #e8eaf6;
+    --muted:    #6b7280;
+    --danger:   #ff4d6d;
+    --mono:     'Space Mono', monospace;
+    --sans:     'DM Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(108,99,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(108,99,255,.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── GLOW BLOBS ── */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: .18;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob-1 { width: 500px; height: 500px; background: var(--accent);  top: -120px; left: -100px; }
+  .blob-2 { width: 400px; height: 400px; background: var(--accent2); bottom: -80px; right: -80px; }
+  .blob-3 { width: 300px; height: 300px; background: var(--accent3); top: 50%;   right: 20%;   }
+
+  /* ── LAYOUT ── */
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: clamp(1rem, 3vw, 1.5rem);
+    letter-spacing: -.02em;
+    line-height: 1.2;
+  }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); font-size: .85rem; margin-top: .2rem; }
+
+  /* ── STAT STRIP ── */
+  .stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(108,99,255,.08), transparent);
+  }
+  .stat-card label {
+    display: block;
+    font-size: .7rem;
+    font-family: var(--mono);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    margin-bottom: .3rem;
+  }
+  .stat-card .val {
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ── MAIN GRID ── */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 780px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── FORM ── */
+  .field { margin-bottom: 1.1rem; }
+  .field label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: .4rem;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-family: var(--mono);
+  }
+  .field select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: .65rem .9rem;
+    font-family: var(--sans);
+    font-size: .9rem;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color .2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: calc(100% - 12px) center;
+  }
+  .field select:focus { outline: none; border-color: var(--accent); }
+  .field select option { background: #1a1f33; }
+
+  /* ── BUTTONS ── */
+  .btn-row { display: flex; gap: .8rem; margin-top: 1.4rem; }
+  .btn {
+    flex: 1;
+    padding: .75rem 1rem;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .btn:hover::after { opacity: .08; }
+  .btn:active { transform: scale(.97); }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #8b5cf6); color: #fff; }
+  .btn-secondary { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  /* ── RESULTS PANEL ── */
+  .results-stack { display: flex; flex-direction: column; gap: 1rem; }
+
+  .accuracy-hero {
+    background: linear-gradient(135deg, #1a1f3a, #0f1628);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.8rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .accuracy-hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: 50%;
+    transform: translateX(-50%);
+    width: 200px; height: 200px;
+    background: radial-gradient(var(--accent3), transparent 70%);
+    opacity: .15;
+  }
+  .accuracy-label {
+    font-family: var(--mono);
+    font-size: .7rem;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--muted);
+    margin-bottom: .5rem;
+  }
+  .accuracy-value {
+    font-family: var(--mono);
+    font-size: 4rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, var(--accent3), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+  }
+  .accuracy-sub {
+    font-size: .8rem;
+    color: var(--muted);
+    margin-top: .4rem;
+    font-family: var(--mono);
+  }
+
+  /* ── REPORT TABLE ── */
+  .report-table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .report-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: .78rem;
+  }
+  .report-table-wrap th {
+    background: var(--surface);
+    padding: .6rem 1rem;
+    text-align: left;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: .68rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .report-table-wrap td {
+    padding: .55rem 1rem;
+    border-bottom: 1px solid rgba(35,40,64,.6);
+  }
+  .report-table-wrap tr:last-child td { border-bottom: none; }
+  .report-table-wrap tr:hover td { background: rgba(108,99,255,.06); }
+  .bar-cell { display: flex; align-items: center; gap: .6rem; }
+  .mini-bar { height: 6px; border-radius: 3px; background: var(--accent); transition: width .6s ease; }
+
+  /* ── PREDICTION CARD ── */
+  .prediction-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: none;
+  }
+  .pred-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .5rem 1.2rem;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: .9rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  .pred-badge.ok  { background: rgba(67,232,164,.15); color: var(--accent3); border: 1px solid rgba(67,232,164,.3); }
+  .pred-badge.bad { background: rgba(255,77,109,.15);  color: var(--danger);  border: 1px solid rgba(255,77,109,.3); }
+  .pred-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: .5rem;
+  }
+  .feat-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .4rem .7rem;
+    font-family: var(--mono);
+    font-size: .7rem;
+  }
+  .feat-chip .fk { color: var(--muted); margin-bottom: .1rem; }
+  .feat-chip .fv { color: var(--accent); font-weight: 700; }
+
+  /* ── CONSOLE LOG ── */
+  .console {
+    background: #060810;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: #4ade80;
+    min-height: 60px;
+    max-height: 140px;
+    overflow-y: auto;
+    line-height: 1.7;
+  }
+  .console .log-line { opacity: .7; }
+  .console .log-line.active { opacity: 1; color: var(--accent3); }
+  .console .log-line.err { color: var(--danger); }
+
+  /* ── SPINNER ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,.2);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+    margin-right: .4rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── PLACEHOLDER ── */
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--muted);
+    gap: .8rem;
+  }
+  .placeholder svg { opacity: .25; }
+  .placeholder p { font-size: .85rem; line-height: 1.6; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-icon">🧠</div>
+    <div>
+      <h1>Teen Mental Health <span>·</span> ML Dashboard</h1>
+      <p>Depression label prediction using classical machine learning</p>
+    </div>
+  </header>
+
+  <!-- STATS STRIP -->
+  <div class="stats-strip" id="statsStrip">
+    <div class="stat-card"><label>Total Records</label><div class="val" id="statRows">—</div></div>
+    <div class="stat-card"><label>Features</label><div class="val" id="statFeats">—</div></div>
+    <div class="stat-card"><label>Not Depressed</label><div class="val" id="statClass0">—</div></div>
+    <div class="stat-card"><label>Depressed</label><div class="val" id="statClass1">—</div></div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="main-grid">
+
+    <!-- LEFT: CONTROLS -->
+    <aside>
+      <div class="panel">
+        <div class="panel-title">⚙ Configuration</div>
+
+        <div class="field">
+          <label>Model</label>
+          <select id="modelSelect">
+            <option value="">— choose a model —</option>
+            <option>Logistic Regression</option>
+            <option>Decision Tree</option>
+            <option>Random Forest</option>
+            <option>SVM</option>
+            <option>Neural Network</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Optimizer <span style="color:var(--muted);font-size:.65rem">(Neural Network only)</span></label>
+          <select id="optimizerSelect">
+            <option value="adam">adam</option>
+            <option value="sgd">sgd</option>
+            <option value="lbfgs">lbfgs</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Loss Function <span style="color:var(--muted);font-size:.65rem">(display only)</span></label>
+          <select id="lossSelect">
+            <option value="log_loss">log_loss</option>
+            <option value="hinge">hinge</option>
+            <option value="cross_entropy">cross_entropy</option>
+          </select>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="trainBtn" onclick="trainModel()">Train</button>
+          <button class="btn btn-secondary" id="predictBtn" onclick="predictSample()" disabled>Predict</button>
+        </div>
+      </div>
+
+      <!-- Console -->
+      <div style="margin-top:1rem">
+        <div class="panel-title" style="font-family:var(--mono);font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.6rem;">
+          ▶ Console
+        </div>
+        <div class="console" id="console">
+          <div class="log-line active">> system ready. select a model to begin.</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: RESULTS -->
+    <main class="results-stack">
+
+      <!-- Accuracy hero -->
+      <div id="accuracyHero" style="display:none" class="accuracy-hero">
+        <div class="accuracy-label">Test Accuracy</div>
+        <div class="accuracy-value" id="accValue">—</div>
+        <div class="accuracy-sub" id="accSub">—</div>
+      </div>
+
+      <!-- Report table -->
+      <div id="reportWrap" style="display:none" class="report-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Precision</th>
+              <th>Recall</th>
+              <th>F1-Score</th>
+              <th>Support</th>
+            </tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Prediction -->
+      <div class="prediction-card" id="predCard">
+        <div class="panel-title">🔮 Sample Prediction</div>
+        <div id="predBadge"></div>
+        <div class="pred-features" id="predFeatures"></div>
+      </div>
+
+      <!-- Placeholder -->
+      <div class="placeholder" id="placeholder">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="30" stroke="#6b7280" stroke-width="2" stroke-dasharray="6 4"/>
+          <path d="M22 32h20M32 22v20" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p>Select a model and click <strong>Train</strong><br>to see accuracy results and classification report.</p>
+      </div>
+
+    </main>
+  </div><!-- end main-grid -->
+</div><!-- end wrapper -->
+
+<script>
+  let currentModel = null;
+
+  // ── Fetch dataset info ──────────────────────────────────────────────────
+  fetch('/dataset_info')
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('statRows').textContent  = d.rows.toLocaleString();
+      document.getElementById('statFeats').textContent = d.features.length;
+      document.getElementById('statClass0').textContent = (d.class_dist[0] || 0).toLocaleString();
+      document.getElementById('statClass1').textContent = (d.class_dist[1] || 0).toLocaleString();
+    });
+
+  // ── Console log helper ──────────────────────────────────────────────────
+  function log(msg, type='') {
+    const c = document.getElementById('console');
+    const line = document.createElement('div');
+    line.className = 'log-line active ' + type;
+    line.textContent = '> ' + msg;
+    // dim previous active lines
+    c.querySelectorAll('.log-line.active').forEach(el => el.classList.remove('active'));
+    c.appendChild(line);
+    c.scrollTop = c.scrollHeight;
+  }
+
+  // ── TRAIN ───────────────────────────────────────────────────────────────
+  async function trainModel() {
+    const model     = document.getElementById('modelSelect').value;
+    const optimizer = document.getElementById('optimizerSelect').value;
+    const loss      = document.getElementById('lossSelect').value;
+
+    if (!model) { log('ERROR: no model selected.', 'err'); return; }
+
+    const trainBtn   = document.getElementById('trainBtn');
+    const predictBtn = document.getElementById('predictBtn');
+
+    trainBtn.disabled = true;
+    trainBtn.innerHTML = '<span class="spinner"></span>Training…';
+    log(`training ${model} (optimizer=${optimizer}, loss=${loss})…`);
+
+    document.getElementById('placeholder').style.display     = 'flex';
+    document.getElementById('accuracyHero').style.display    = 'none';
+    document.getElementById('reportWrap').style.display      = 'none';
+    document.getElementById('predCard').style.display        = 'none';
+
+    try {
+      const res  = await fetch('/train', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ model, optimizer, loss })
+      });
+      const data = await res.json();
+
+      if (data.error) { log('ERROR: ' + data.error, 'err'); return; }
+
+      currentModel = model;
+      log(`done! accuracy = ${data.accuracy}%`);
+
+      // Show accuracy hero
+      document.getElementById('placeholder').style.display  = 'none';
+      document.getElementById('accuracyHero').style.display = 'block';
+      document.getElementById('accValue').textContent = data.accuracy + '%';
+      document.getElementById('accSub').textContent   =
+        `${data.model} · optimizer: ${data.optimizer} · loss: ${data.loss}`;
+
+      // Build report table
+      renderReport(data.report);
+      document.getElementById('reportWrap').style.display = 'block';
+
+      predictBtn.disabled = false;
+
+    } catch(e) {
+      log('network error: ' + e.message, 'err');
+    } finally {
+      trainBtn.disabled = false;
+      trainBtn.innerHTML = 'Train';
+    }
+  }
+
+  // ── RENDER REPORT ───────────────────────────────────────────────────────
+  function renderReport(report) {
+    const tbody = document.getElementById('reportBody');
+    tbody.innerHTML = '';
+    const keys = Object.keys(report).filter(k => !['accuracy','macro avg','weighted avg'].includes(k));
+    [...keys, 'macro avg', 'weighted avg'].forEach(cls => {
+      const row = report[cls];
+      if (!row || typeof row !== 'object') return;
+      const tr = document.createElement('tr');
+      const label = cls === '0' ? 'Not Depressed (0)' : cls === '1' ? 'Depressed (1)' : cls;
+      const f1 = (row['f1-score'] * 100).toFixed(1);
+      tr.innerHTML = `
+        <td style="color:var(--text);font-weight:500">${label}</td>
+        <td>${(row.precision * 100).toFixed(1)}%</td>
+        <td>${(row.recall    * 100).toFixed(1)}%</td>
+        <td>
+          <div class="bar-cell">
+            ${f1}%
+            <div class="mini-bar" style="width:${f1}px;max-width:80px"></div>
+          </div>
+        </td>
+        <td style="color:var(--muted)">${row.support || '—'}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── PREDICT ─────────────────────────────────────────────────────────────
+  async function predictSample() {
+    if (!currentModel) { log('ERROR: train the model first.', 'err'); return; }
+
+    log(`predicting sample with ${currentModel}…`);
+
+    const predictBtn = document.getElementById('predictBtn');
+    predictBtn.disabled = true;
+    predictBtn.innerHTML = '<span class="spinner"></span>Predicting…';
+
+    try {
+      const res  = await fetch('/predict', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ model: currentModel })
+      });
+      const data = await res.json();
+
+      if (data.error) { log('ERROR: ' + data.error, 'err'); return; }
+
+      log(`prediction → ${data.label} (${data.prediction})`);
+
+      // Render prediction card
+      const card = document.getElementById('predCard');
+      card.style.display = 'block';
+
+      const badge = document.getElementById('predBadge');
+      badge.innerHTML = `
+        <div class="pred-badge ${data.prediction === 1 ? 'bad' : 'ok'}">
+          ${data.prediction === 1 ? '⚠ ' : '✓ '}
+          ${data.label}
+        </div>`;
+
+      const feats = document.getElementById('predFeatures');
+      feats.innerHTML = Object.entries(data.sample)
+        .map(([k,v]) => `
+          <div class="feat-chip">
+            <div class="fk">${k}</div>
+            <div class="fv">${typeof v === 'number' ? v.toFixed(2) : v}</div>
+          </div>`)
+        .join('');
+
+    } catch(e) {
+      log('network error: ' + e.message, 'err');
+    } finally {
+      predictBtn.disabled = false;
+      predictBtn.innerHTML = 'Predict';
+    }
+  }
+</script>
+</body>
+</html>
